@@ -4,11 +4,12 @@ import pydicom, numpy as np
 import cv2
 from PIL import Image, ImageDraw
 import json
+from collections import Counter
 import settings
 
 LABEL_FILE = settings.LABEL_FILE
 TRAIN_IMG_DIR = settings.TRAIN_IMG_DIR
-
+SPLIT_FILE = os.path.join(settings.DATA_DIR, 'split.json')
 
 def get_train_data():
     """
@@ -95,11 +96,11 @@ def overlay_box(im, box, rgb, stroke=1):
 
     return im
 
-def get_train_ids():
+def get_labeled_ids():
     df = pd.read_csv(LABEL_FILE)
     pids = list(set(df.values[:, 0].tolist()))
-    print(len(pids))
-    print(pids[:2])
+    #print(len(pids))
+    #print(pids[:2])
     return pids
     #img_files = glob.glob(os.path.join(settings.TRAIN_IMG_DIR, '*.dcm'))
     #print(len(img_files))
@@ -111,11 +112,12 @@ def test():
 
     pids = get_train_ids()
 
+    print(train_data['00436515-870c-4b36-a041-de91049b9ab4'])
     draw(train_data['00436515-870c-4b36-a041-de91049b9ab4'])
 
     for i in range(5):
-        print('>>>')
         pid = pids[10+i]
+        print(train_data[pid])
         draw(train_data[pid])
 
     df_detailed = pd.read_csv(settings.CLASS_FILE)
@@ -132,6 +134,49 @@ def test():
         
     print(summary)
 
+def check_classes():
+    label_dict = get_train_data()
+    count = Counter()
+    for k in label_dict:
+        if len(label_dict[k]['boxes']) > 0:
+            count.update(['withbox'])
+            for i in range(len(label_dict[k]['boxes'])):
+                count.update(['numboxes'])
+        else:
+            count.update(['nobox'])
+    print(count)
+
+def create_train_val_split():
+    pids = get_labeled_ids()
+    train_nums = int(len(pids) * 0.9)
+    print(pids[:5])
+    pids = np.random.permutation(pids).tolist()
+    print(pids[:5])
+    print(len(pids))
+    train_ids = pids[:train_nums]
+    val_ids = pids[train_nums:]
+    split = {}
+    split['train_ids'] = train_ids
+    split['val_ids'] = val_ids
+    print(len(train_ids))
+    print(len(val_ids))
+    with open(SPLIT_FILE, 'w') as f:
+        json.dump(split, f, indent=4)
+
+def get_train_ids():
+    with open(SPLIT_FILE, 'r') as f:
+        split = json.load(f)
+        return split['train_ids']
+
+def get_val_ids():
+    with open(SPLIT_FILE, 'r') as f:
+        split = json.load(f)
+        return split['val_ids']
+
 if __name__ == '__main__':
-    test()
+    #create_train_val_split()
+    #test()
     #get_train_ids()
+    #check_classes()
+    print(len(get_train_ids()))
+    print(len(get_val_ids()))
