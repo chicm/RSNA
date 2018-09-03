@@ -19,7 +19,7 @@ from torch.autograd import Variable
 import time
 import logging as log
 from imgdataset import get_train_loader, get_small_train_loader
-from dcom import get_train_ids, get_val_ids
+from dcom import get_balanced_train_ids, get_balanced_val_ids
 import settings
 
 batch_size = 4
@@ -34,7 +34,7 @@ def run_train(args):
     assert torch.cuda.is_available(), 'Error: CUDA not found!'
     start_epoch = 0  # start from epoch 0 or last epoch
 
-    trainloader = get_train_loader(get_train_ids(), batch_size=batch_size)
+    trainloader = get_train_loader(get_balanced_train_ids(), batch_size=batch_size)
     print(trainloader.num)
     
 
@@ -47,8 +47,8 @@ def run_train(args):
     net.cuda()
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=1e-4)
-    #optimizer = optim.Adam(net.parameters(), lr=args.lr)
+    #optimizer = optim.SGD(net.parameters(), lr=args.lr, momentum=0.9, weight_decay=1e-4)
+    optimizer = optim.Adam(net.parameters(), lr=args.lr)
 
     iter_save = 200
     iter_val = 500
@@ -86,16 +86,18 @@ def run_train(args):
 
 # Test
 def validate(net, criterion):
-    print('\nTest')
-    valloader = get_train_loader(get_val_ids()[:500], batch_size=batch_size)
+    print('\nValidating..')
+    valloader = get_train_loader(get_balanced_val_ids(), batch_size=batch_size)
     net.eval()
     corrects = 0
-    for batch_idx, (inputs, img_label, _, _) in enumerate(valloader):
+    for i, (inputs, img_label, _, _) in enumerate(valloader):
         inputs, img_label = inputs.cuda(), img_label.cuda()
         output = net(inputs)
         #loss = criterion(output, img_label)
         preds = output.max(1, keepdim=True)[1]
         corrects += preds.eq(img_label.view_as(preds)).sum().item()
+        print(f'{i*batch_size}/{valloader.num}', end='\r')
+    print('')
 
     return corrects, valloader.num
 

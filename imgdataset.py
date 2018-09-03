@@ -76,7 +76,7 @@ class ImageDataset(data.Dataset):
             #print('1>>>')
             #print(boxes[i].size(), labels[i].size())
             if self.label_dict:
-                loc_target, cls_target = self.encoder.encode(torch.Tensor(boxes[i]), torch.LongTensor([1]*len(boxes[i])))
+                loc_target, cls_target = self.encoder.encode(torch.Tensor(boxes[i]), torch.LongTensor([0]*len(boxes[i])))
                 loc_targets.append(loc_target)
                 cls_targets.append(cls_target)
 
@@ -90,7 +90,7 @@ def get_train_loader(pids, img_dir=settings.TRAIN_IMG_DIR, batch_size=8, shuffle
     label_dict = get_train_data()
 
     dset = ImageDataset(pids, img_dir, label_dict)
-    dloader = data.DataLoader(dset, batch_size=batch_size, shuffle=True, num_workers=4, collate_fn=dset.collate_fn)
+    dloader = data.DataLoader(dset, batch_size=batch_size, shuffle=shuffle, num_workers=4, collate_fn=dset.collate_fn)
     dloader.num = dset.num
     return dloader
 
@@ -110,13 +110,20 @@ def get_small_train_loader(img_dir=settings.TRAIN_IMG_DIR, batch_size=4):
     dloader.num = dset.num
     return dloader
 
-def test_small_train_loader():
+def test_train_loader():
     #loader = ImageDataLoader(get_train_ids())
-    loader = get_train_loader(get_train_ids())
+    train_data = get_train_data()
+    img_ids =  get_train_ids()
+    loader = get_train_loader(img_ids, shuffle=False)
+    count = 0
     for i, data in enumerate(loader):
         imgs, img_labels, bbox, clfs = data
+        for l in img_labels:
+            assert(l.item() == train_data[img_ids[count]]['label'])
+            count += 1
+            print(count, end='\r')
         #print(imgs)
-        print(img_labels)
+        #print(img_labels)
         #print(imgs.size(), bbox.size(), clfs.size())
         #print(torch.max(bbox))
 
@@ -129,6 +136,6 @@ def test_test_loader():
 
 if __name__ == '__main__':
     #test_test_loader()
-    test_small_train_loader()
+    test_train_loader()
     #small_dict, img_ids = load_small_train_ids()
     #print(img_ids[:10])

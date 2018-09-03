@@ -173,10 +173,56 @@ def get_val_ids():
         split = json.load(f)
         return split['val_ids']
 
+def get_balanced_train_ids():
+    label_dict = get_train_data()
+    pids = get_train_ids()
+    pids_true = [x for x in pids if label_dict[x]['label'] == 1]
+    pids_false = [x for x in pids if label_dict[x]['label'] == 0]
+    #print(len(pids), len(pids_true), len(pids_false))
+    pids_true = pids_true*3
+    #print(len(pids_true))
+    pids_balanced = pids_true + pids_false
+    
+    pids_balanced = np.random.permutation(pids_balanced)
+    return pids_balanced
+    #labels = [label_dict[x]['label'] for x in pids_balanced]
+    #print([i for i in zip(pids_balanced, labels)][:10])
+
+def get_boxed_train_ids():
+    label_dict = get_train_data()
+    pids = get_train_ids()
+    pids_true = [x for x in pids if label_dict[x]['label'] == 1]
+
+    return pids_true
+
+def get_balanced_val_ids():
+    label_dict = get_train_data()
+    pids = get_val_ids()
+    pids_true = [x for x in pids if label_dict[x]['label'] == 1]
+    pids_false = [x for x in pids if label_dict[x]['label'] == 0]
+    #print(len(pids), len(pids_true), len(pids_false))
+    pids_false = np.random.permutation(pids_false)[:600].tolist()
+
+    pids_balanced = pids_true + pids_false
+    pids_balanced = np.random.permutation(pids_balanced)
+    #print(len(pids_balanced))
+    return pids_balanced
+    #labels = [label_dict[x]['label'] for x in pids_balanced]
+    #print([i for i in zip(pids_balanced, labels)][:10])
+
+
+def test_label():
+    train_data = get_train_data()
+    print(train_data['a6ad6c3a-cfc5-414e-9e57-575eeb1e3d9b']['label'])
+    print(train_data['a6aa1429-135a-49ed-bbaa-ebede9b1b63c']['label'])
+    print(train_data['fe455399-fd6f-4baa-8b02-cee57eb9986b']['label'])
+
 if __name__ == '__main__':
     #create_train_val_split()
     #test()
     #get_train_ids()
     #check_classes()
-    print(len(get_train_ids()))
-    print(len(get_val_ids()))
+    #print(len(get_train_ids()))
+    #print(len(get_val_ids()))
+    #test_label()
+    get_balanced_val_ids()
