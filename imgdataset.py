@@ -4,7 +4,7 @@ import pydicom
 import torch
 import torch.utils.data as data
 from torchvision import datasets, models, transforms
-from dcom import get_train_data, get_train_ids
+from dcom import get_train_data, get_train_ids, get_test_ids
 from encoder import DataEncoder
 import settings
 
@@ -96,7 +96,7 @@ def get_train_loader(pids, img_dir=settings.TRAIN_IMG_DIR, batch_size=8, shuffle
 
 def get_test_loader(img_ids, img_dir=settings.TEST_IMG_DIR, batch_size=16):
     dset = ImageDataset(img_ids, img_dir, None)
-    dloader = data.DataLoader(dset, batch_size=batch_size, shuffle=False, num_workers=4, collate_fn=dset.collate_fn, drop_last=False)
+    dloader = data.DataLoader(dset, batch_size=batch_size, shuffle=False, num_workers=1, collate_fn=dset.collate_fn, drop_last=False)
     dloader.num = dset.num
     dloader.img_ids = img_ids
     return dloader
@@ -128,14 +128,14 @@ def test_train_loader():
         #print(torch.max(bbox))
 
 def test_test_loader():
-    loader = get_test_loader()
+    loader = get_test_loader(get_test_ids())
     for i, data in enumerate(loader):
         print(data.size())
         if i > 10:
             break
 
 if __name__ == '__main__':
-    #test_test_loader()
-    test_train_loader()
+    test_test_loader()
+    #test_train_loader()
     #small_dict, img_ids = load_small_train_ids()
     #print(img_ids[:10])

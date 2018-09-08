@@ -14,7 +14,7 @@ class DataEncoder:
         self.anchor_wh = self._get_anchor_wh()
         self.class_threshold = 0.2 #0.202
         self.nms_threshold = 0.5
-        self.anchor_boxes = self._get_anchor_boxes(torch.Tensor([settings.IMG_SZ, settings.IMG_SZ])).cuda()
+        #self.anchor_boxes = self._get_anchor_boxes(torch.Tensor([settings.IMG_SZ, settings.IMG_SZ])).cuda()
         self.anchor_boxes_cpu = self._get_anchor_boxes(torch.Tensor([settings.IMG_SZ, settings.IMG_SZ]))
 
     def _get_anchor_wh(self):
@@ -121,7 +121,7 @@ class DataEncoder:
 
         input_size = torch.Tensor([input_size,input_size]) if isinstance(input_size, int) \
                      else torch.Tensor(input_size)
-        anchor_boxes = self.anchor_boxes #_get_anchor_boxes(input_size)
+        anchor_boxes = self.anchor_boxes_cpu.cuda() #_get_anchor_boxes(input_size)
 
         loc_xy = loc_preds[:,:2]
         loc_wh = loc_preds[:,2:]
@@ -130,19 +130,20 @@ class DataEncoder:
         wh = loc_wh.exp() * anchor_boxes[:,2:]
         boxes = torch.cat([xy-wh/2, xy+wh/2], 1)  # [#anchors,4]
 
-        print(cls_preds.size())
+        #print(cls_preds.size())
         #score, labels = cls_preds.sigmoid().max(1)          # [#anchors,]
         score = cls_preds.sigmoid().squeeze()          # [#anchors,]
         print('score>>>', score.size())
         
         #labels += 1
         ids = score > CLS_THRESH
-        print(ids.sum())
-        print(ids.size())
-        print('sum:', ids.sum())
+        print('ids size:', ids.size())
+        print('BBOXES:', ids.sum().item())
         if ids.sum().item() < 0.5:
               return [], []
-        ids = ids.nonzero().squeeze()             # [#obj,]
+        ids = ids.nonzero().squeeze(1)             # [#obj,]
+        if ids.sum().item() < 0.5:
+            return [], []
         print(ids.size())
         print('>>>', boxes[ids].size())
         keep = box_nms(boxes[ids], score[ids], threshold=NMS_THRESH).cuda()

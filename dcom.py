@@ -42,7 +42,7 @@ def get_train_data():
         pid = row['patientId']
         if pid not in parsed:
             parsed[pid] = {
-                'dicom': os.path.join(TRAIN_IMG_DIR, '{}.dcm'.format(pid)),
+                'dicom': os.path.join(settings.TRAIN_DCM_DIR, '{}.dcm'.format(pid)),
                 'label': row['Target'],
                 'boxes': []}
 
@@ -173,6 +173,12 @@ def get_val_ids():
         split = json.load(f)
         return split['val_ids']
 
+def get_test_ids():
+    df = pd.read_csv(settings.SAMPLE_SUB1)
+    pids = df.values[:, 0].tolist()
+    print(len(pids))
+    return pids
+
 def get_balanced_train_ids():
     label_dict = get_train_data()
     pids = get_train_ids()
@@ -219,10 +225,11 @@ def test_label():
 
 if __name__ == '__main__':
     #create_train_val_split()
-    #test()
+    test()
     #get_train_ids()
     #check_classes()
     #print(len(get_train_ids()))
     #print(len(get_val_ids()))
     #test_label()
-    get_balanced_val_ids()
+    #get_balanced_val_ids()
+    #print(get_test_ids()[:10])
