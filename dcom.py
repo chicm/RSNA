@@ -223,9 +223,13 @@ def test_label():
     print(train_data['a6aa1429-135a-49ed-bbaa-ebede9b1b63c']['label'])
     print(train_data['fe455399-fd6f-4baa-8b02-cee57eb9986b']['label'])
 
+    for k in train_data.keys():
+        print(train_data[k]['boxes'])
+
 if __name__ == '__main__':
+    test_label()
     #create_train_val_split()
-    test()
+    #test()
     #get_train_ids()
     #check_classes()
     #print(len(get_train_ids()))
