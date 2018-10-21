@@ -107,7 +107,7 @@ def get_img_mask_transforms(img_sz):
         aug.RandomHFlipWithMask(),
         #aug.RandomVFlipWithMask(),
         #aug.RandomRotateWithMask([0,90]),
-        aug.RandomRotateWithMask(5),
+        aug.RandomRotateWithMask(10),
         aug.RandomResizedCropWithMask(img_sz, scale=(0.5, 1))
     ])
     return img_mask_transforms
