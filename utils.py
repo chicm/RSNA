@@ -48,12 +48,16 @@ def get_train_val_meta(drop_empty=False):
         df_train = df_train_true
         df_val = df_val_true
     else:
-        df_train = shuffle(df_train_true.append(df_train_false.iloc[:3000]), random_state=1234)
+        df_train = shuffle(df_train_true.append(df_train_false), random_state=1234)
         df_val = shuffle(df_val_true.append(df_val_false), random_state=1234)
 
     print(df_train.shape, df_val.shape)
 
     return df_train, df_val
+
+def get_test_meta():
+    df = pd.read_csv(settings.STAGE1_SAMPLE_SUBMISSION)
+    return df
 
 
 def run_length_encoding(x):

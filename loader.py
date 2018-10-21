@@ -7,7 +7,7 @@ import torch.utils.data as data
 from torchvision import datasets, models, transforms
 import torchvision.transforms.functional as F
 import settings
-from utils import get_train_val_meta, get_boxes_per_patient, get_patient_mask#, get_test_meta
+from utils import get_train_val_meta, get_boxes_per_patient, get_patient_mask, get_test_meta
 import augmentation as aug
 
 import pdb
@@ -16,7 +16,7 @@ import pdb
 class ImageDataset(data.Dataset):
     def __init__(self, train_mode, meta, img_dir, augment_with_target=None,
                 image_augment=None, image_transform=None, mask_transform=None):
-        self.IMG_SZ = 512
+        self.IMG_SZ = 256
         self.augment_with_target = augment_with_target
         self.image_augment = image_augment
         self.image_transform = image_transform
@@ -105,10 +105,10 @@ def to_tensor(x):
 def get_img_mask_transforms(img_sz):
     img_mask_transforms = aug.Compose([
         aug.RandomHFlipWithMask(),
-        aug.RandomVFlipWithMask(),
-        aug.RandomRotateWithMask([0,90]),
-        #aug.RandomRotateWithMask(15),
-        aug.RandomResizedCropWithMask(img_sz, scale=(0.9, 1))
+        #aug.RandomVFlipWithMask(),
+        #aug.RandomRotateWithMask([0,90]),
+        aug.RandomRotateWithMask(5),
+        aug.RandomResizedCropWithMask(img_sz, scale=(0.5, 1))
     ])
     return img_mask_transforms
 
@@ -146,7 +146,7 @@ def get_train_val_loaders(batch_size=8, dev_mode=False, drop_empty=False, img_sz
     train_shuffle = True
     train_meta, val_meta = get_train_val_meta(drop_empty=drop_empty)
 
-    img_mask_aug_train = get_img_mask_transforms(img_sz) #ImgAug(aug.get_affine_seq('edge'))
+    img_mask_aug_train = get_img_mask_transforms(img_sz)
 
     if dev_mode:
         train_shuffle = False
@@ -158,11 +158,11 @@ def get_train_val_loaders(batch_size=8, dev_mode=False, drop_empty=False, img_sz
 
     train_set = ImageDataset(True, train_meta, img_dir=settings.TRAIN_IMG_DIR,
                             augment_with_target=img_mask_aug_train,
-                            image_augment=None, #transforms.ColorJitter(0.1, 0.1, 0, 0),  #ImgAug(aug.brightness_seq),
+                            image_augment=ransforms.ColorJitter(0.2, 0.2, 0.2, 0.2),  
                             image_transform=get_img_transforms(img_sz),
                             mask_transform=get_mask_transforms(img_sz))
 
-    train_loader = data.DataLoader(train_set, batch_size=batch_size, shuffle=train_shuffle, num_workers=0, collate_fn=train_set.collate_fn, drop_last=True)
+    train_loader = data.DataLoader(train_set, batch_size=batch_size, shuffle=train_shuffle, num_workers=4, collate_fn=train_set.collate_fn, drop_last=True)
     train_loader.num = len(train_set)
 
     if dev_mode:
@@ -220,8 +220,8 @@ def test_test_loader():
             break
 
 if __name__ == '__main__':
-    #test_test_loader()
-    test_train_loader()
+    test_test_loader()
+    #test_train_loader()
     #small_dict, img_ids = load_small_train_ids()
     #print(img_ids[:10])
     #print(get_tta_transforms(3, 'edge'))
