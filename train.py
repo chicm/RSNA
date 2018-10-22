@@ -13,6 +13,7 @@ import pdb
 import settings
 from loader import get_train_val_loaders
 from models import RSNAV1
+from unet import UNet, deep_supervised_criterion
 from lovasz_losses import lovasz_hinge, lovasz_softmax
 from dice_losses import mixed_dice_bce_loss, FocalLoss2d
 from postprocessing import binarize, resize_image
@@ -33,6 +34,8 @@ def criterion(args, output, target, epoch=0):
     bce_loss = F.binary_cross_entropy_with_logits(mask_output, mask_target)
     cls_loss = F.binary_cross_entropy_with_logits(ship_output, ship_target)
 
+    #loss = models.deep_supervised_criterion(logit, logit_pixel, logit_image, truth_pixel, truth_image)
+
     if args.train_cls:
         #cls_loss = F.binary_cross_entropy_with_logits(ship_output, ship_target)
         return lovasz_loss + bce_loss + cls_loss, focal_loss.item(), lovasz_loss.item(), bce_loss.item(), cls_loss.item()
@@ -48,7 +51,7 @@ def criterion(args, output, target, epoch=0):
 def train(args):
     print('start training...')
 
-    model = eval(args.model_name)(args.layers)
+    model = UNet(basenet='resnet34')
 
     if args.exp_name is None:
         model_file = os.path.join(MODEL_DIR, model.name, 'best.pth')
@@ -107,9 +110,14 @@ def train(args):
             img, target, salt_target = data
             img, target, salt_target = img.cuda(), target.cuda(), salt_target.cuda()
             optimizer.zero_grad()
-            output, salt_out = model(img)
+            #output, salt_out = model(img)
+            logit, logit_pixel, logit_image = model(img)
+
+            truth_pixel = target
+            truth_image = salt_target.float()
             
-            loss, *_ = criterion(args, (output, salt_out), (target, salt_target), epoch=epoch)
+            #loss, *_ = criterion(args, (output, salt_out), (target, salt_target), epoch=epoch)
+            loss = deep_supervised_criterion(logit, logit_pixel, logit_image, truth_pixel, truth_image)
             loss.backward()
  
             optimizer.step()
@@ -161,7 +169,8 @@ def validate(args, model, val_loader, epoch=0, threshold=0.5, cls_threshold=0.5)
     with torch.no_grad():
         for img, target, ship_target in val_loader:
             img, target, ship_target = img.cuda(), target.cuda(), ship_target.cuda()
-            output, ship_out = model(img)
+            #output, ship_out = model(img)
+            output, logit_pixel, ship_out = model(img)
             #print(output.size(), salt_out.size())
             ship_pred = (torch.sigmoid(ship_out) > cls_threshold).byte()
             total_num += len(img)
@@ -228,7 +237,7 @@ if __name__ == '__main__':
     parser.add_argument('--layers', default=34, type=int, help='model layers')
     parser.add_argument('--lr', default=0.005, type=float, help='learning rate')
     parser.add_argument('--min_lr', default=0.0001, type=float, help='min learning rate')
-    parser.add_argument('--batch_size', default=16, type=int, help='batch_size')
+    parser.add_argument('--batch_size', default=8, type=int, help='batch_size')
     parser.add_argument('--start_epoch', default=0, type=int, help='start epoch')
     parser.add_argument('--iter_val', default=200, type=int, help='start epoch')
     parser.add_argument('--epochs', default=200, type=int, help='epoch')
@@ -238,7 +247,7 @@ if __name__ == '__main__':
     parser.add_argument('--factor', default=0.5, type=float, help='lr scheduler factor')
     parser.add_argument('--t_max', default=15, type=int, help='lr scheduler patience')
     parser.add_argument('--exp_name', default=None, type=str, help='exp name')
-    parser.add_argument('--model_name', default='RSNAV1', type=str, help='')
+    parser.add_argument('--model_name', default='UNet_resnet34', type=str, help='')
     parser.add_argument('--init_ckp', default=None, type=str, help='resume from checkpoint path')
     parser.add_argument('--val', action='store_true')
     parser.add_argument('--dev_mode', action='store_true')

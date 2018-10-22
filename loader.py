@@ -158,7 +158,7 @@ def get_train_val_loaders(batch_size=8, dev_mode=False, drop_empty=False, img_sz
 
     train_set = ImageDataset(True, train_meta, img_dir=settings.TRAIN_IMG_DIR,
                             augment_with_target=img_mask_aug_train,
-                            image_augment=ransforms.ColorJitter(0.2, 0.2, 0.2, 0.2),  
+                            image_augment=transforms.ColorJitter(0.2, 0.2, 0.2, 0.2),  
                             image_transform=get_img_transforms(img_sz),
                             mask_transform=get_mask_transforms(img_sz))
 

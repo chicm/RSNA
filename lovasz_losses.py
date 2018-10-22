@@ -4,12 +4,12 @@ Maxim Berman 2018 ESAT-PSI KU Leuven (MIT License)
 """
 
 from __future__ import print_function, division
+import functools
 
 import torch
 from torch.autograd import Variable
 import torch.nn.functional as F
 import numpy as np
-
 try:
     from itertools import  ifilterfalse
 except ImportError: # py3k
@@ -75,8 +75,17 @@ def iou(preds, labels, C, EMPTY=1., ignore=None, per_image=False):
 
 # --------------------------- BINARY LOSSES ---------------------------
 
+def hinge(logits, labels):
+    signs = 2. * labels.float() - 1.
+    errors = (1. - logits * Variable(signs))
+    return errors
+
 
 def lovasz_hinge(logits, labels, per_image=True, ignore=None):
+    return lovasz_loss(logits, labels, error_func=hinge, per_image=per_image, ignore=ignore)
+
+
+def lovasz_loss(logits, labels, error_func, per_image=True, ignore=None):
     """
     Binary Lovasz hinge loss
       logits: [B, H, W] Variable, logits at each pixel (between -\infty and +\infty)
@@ -85,14 +94,14 @@ def lovasz_hinge(logits, labels, per_image=True, ignore=None):
       ignore: void class id
     """
     if per_image:
-        loss = mean(lovasz_hinge_flat(*flatten_binary_scores(log.unsqueeze(0), lab.unsqueeze(0), ignore))
+        loss = mean(lovasz_loss_flat(*flatten_binary_scores(log.unsqueeze(0), lab.unsqueeze(0), ignore), error_func=error_func)
                           for log, lab in zip(logits, labels))
     else:
-        loss = lovasz_hinge_flat(*flatten_binary_scores(logits, labels, ignore))
+        loss = lovasz_loss_flat(*flatten_binary_scores(logits, labels, ignore), error_func=error_func)
     return loss
 
 
-def lovasz_hinge_flat(logits, labels):
+def lovasz_loss_flat(logits, labels, error_func):
     """
     Binary Lovasz hinge loss
       logits: [P] Variable, logits at each prediction (between -\infty and +\infty)
@@ -102,15 +111,15 @@ def lovasz_hinge_flat(logits, labels):
     if len(labels) == 0:
         # only void pixels, the gradients should be 0
         return logits.sum() * 0.
-    signs = 2. * labels.float() - 1.
-    errors = (1. - logits * Variable(signs))
+
+    errors = error_func(logits, labels)
+
     errors_sorted, perm = torch.sort(errors, dim=0, descending=True)
     perm = perm.data
     gt_sorted = labels[perm]
     grad = lovasz_grad(gt_sorted)
-    loss = torch.dot(F.elu(errors_sorted)+1, Variable(grad))
     #loss = torch.dot(F.relu(errors_sorted), Variable(grad))
-    
+    loss = torch.dot(F.elu(errors_sorted) + 1, Variable(grad))
     return loss
 
 
@@ -119,8 +128,8 @@ def flatten_binary_scores(scores, labels, ignore=None):
     Flattens predictions in the batch (binary case)
     Remove labels equal to 'ignore'
     """
-    scores = scores.view(-1)
-    labels = labels.view(-1)
+    scores = scores.contiguous().view(-1)
+    labels = labels.contiguous().view(-1)
     if ignore is None:
         return scores, labels
     valid = (labels != ignore)
@@ -233,3 +242,26 @@ def mean(l, ignore_nan=False, empty=0):
     if n == 1:
         return acc
     return acc / n
+
+
+
+#
+# lovasz hinge for non empty images
+#
+
+def lovasz_loss_ignore_empty(logits, labels, truth_image, ignore=None):
+    loss = mean_ignore_empty((lovasz_loss_flat(*flatten_binary_scores(log.unsqueeze(0), lab.unsqueeze(0), ignore), error_func=hinge)
+                          for log, lab in zip(logits, labels)), truth_image)
+    return loss
+
+def mean_ignore_empty(l, truth_image, ignore_nan=False, empty='raise'):
+    n = 0
+    total_loss = 0
+    for i, loss in enumerate(l):
+        if truth_image[i] > 0:
+            total_loss += loss
+            n += 1
+    if n > 0:
+        return 1.0 * total_loss / n
+    else:
+        return 0.0
